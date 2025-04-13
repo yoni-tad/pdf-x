@@ -3,6 +3,7 @@ const paymentModel = require("../model/payment.model");
 const mongoose = require("mongoose");
 const userModel = require("../model/user.model");
 require("dotenv").config();
+const endpoint = process.env.SERVER_URL
 
 exports.InitPayment = async (req, res) => {
   const telegramId = req.body.telegramId;
@@ -28,8 +29,8 @@ exports.InitPayment = async (req, res) => {
         email: "yoni@gmail.com",
         tx_ref: transactionId,
         callback_url:
-          "https://1df5-196-190-60-165.ngrok-free.app/api/payment-callback",
-        return_url: `https://1df5-196-190-60-165.ngrok-free.app/api/payment-return?telegramId=${telegramId}`,
+          `${endpoint}/api/payment-callback`,
+        return_url: `${endpoint}/api/payment-return?telegramId=${telegramId}`,
       },
       {
         headers: {

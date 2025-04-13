@@ -21,20 +21,40 @@ exports.UploadPdf = async (req, res) => {
     const user = await userModel.findOne({ telegramId });
     if (!user) return res.status(404).json({ message: "User not found" });
     const userId = user._id;
-    const fileSizeLimit = user.type == "premium" ? 5 * 1048576 : 1 * 1048576;
 
-    if (fileSize > fileSizeLimit) {
+    // limit file upload  createdAt
+    const pdfLimit = user.type == "premium" ? 3 : 1;
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+    const checkPdf = await pdfModel.find({
+      userId: userId,
+      createdAt: { $gte: startOfDay, $lte: endOfDay },
+    });
+
+    if (checkPdf.length >= pdfLimit)
       return res
         .status(400)
         .json({
-          message:
-            "⚠️ max file size limit: " +
-            fileSizeLimit / 1048576 +
-            "MB" +
-            " for " +
-            user.type +
-            " user.",
+          message: `⚠️ You’ve reached your upload limit for today. Free users can upload ${
+            user.type === "premium" ? 3 : 1
+          } PDF${user.type === "premium" ? "s" : ""}.`,
         });
+
+    // limit file size
+    const fileSizeLimit = user.type == "premium" ? 5 * 1048576 : 1 * 1048576;
+
+    if (fileSize > fileSizeLimit) {
+      return res.status(400).json({
+        message:
+          "⚠️ max file size limit: " +
+          fileSizeLimit / 1048576 +
+          "MB" +
+          " for " +
+          user.type +
+          " user.",
+      });
     }
 
     const savePdf = await pdfModel.create({

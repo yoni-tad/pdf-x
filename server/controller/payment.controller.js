@@ -5,7 +5,6 @@ const userModel = require("../model/user.model");
 require("dotenv").config();
 
 exports.InitPayment = async (req, res) => {
-  console.log(req.body);
   const telegramId = req.body.telegramId;
   const transactionId = new mongoose.Types.ObjectId().toString();
   try {
@@ -16,6 +15,11 @@ exports.InitPayment = async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
     const userId = user._id;
 
+    if (user.type == "premium")
+      return res
+        .status(401)
+        .json({ message: "Already purchased the premium plan" });
+
     const response = await axios.post(
       "https://api.chapa.co/v1/transaction/initialize",
       {
@@ -24,9 +28,8 @@ exports.InitPayment = async (req, res) => {
         email: "yoni@gmail.com",
         tx_ref: transactionId,
         callback_url:
-          "https://e133-196-189-145-9.ngrok-free.app/api/payment-callback",
-        return_url:
-          "https://e133-196-189-145-9.ngrok-free.app/api/payment-return",
+          "https://1df5-196-190-60-165.ngrok-free.app/api/payment-callback",
+        return_url: `https://1df5-196-190-60-165.ngrok-free.app/api/payment-return?telegramId=${telegramId}`,
       },
       {
         headers: {
@@ -70,5 +73,56 @@ exports.PaymentCallback = async (req, res) => {
   } catch (e) {
     console.log(e.message);
     res.status(500).json({ message: "Server error, please try again!" });
+  }
+};
+
+exports.PaymentReturn = async (req, res) => {
+  const token = process.env.BOT_TOKEN;
+  const telegramId = req.query.telegramId;
+
+  if (!telegramId)
+    return res.status(404).json({ message: "Telegram id required" });
+
+  const url = `https://api.telegram.org/bot${token}/sendMessage`;
+  const message = `
+🎉 *Congratulations, You're Now a Premium User!*
+
+You’ve just unlocked all the cool features with *1 Birr* 🙌  
+Here’s what you can now enjoy:  
+- 📤 Upload *up to 5MB* files  
+- 📄 Send *up to 3 PDFs*  
+
+Time to upload and chat away like a pro! 😎🚀
+`;
+  const params = { chat_id: telegramId, text: message, parse_mode: "Markdown" };
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    });
+
+    const data = await response.json();
+    if (!data.ok) throw new Error(data.description);
+
+    res.send(`
+      <html>
+        <head>
+          <title>Payment Complete</title>
+        </head>
+        <body style="text-align:center; font-family:sans-serif; margin-top: 50px;">
+          <h2>✅ Payment Successful!</h2>
+          <p>Thanks for upgrading. You can now close this window.</p>
+          <script>
+            setTimeout(() => {
+              window.close();
+            }, 2000); 
+          </script>
+        </body>
+      </html>
+    `);
+  } catch (e) {
+    console.error("Failed to send message:", error);
   }
 };
